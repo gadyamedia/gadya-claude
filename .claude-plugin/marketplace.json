@@ -1,0 +1,21 @@
+{
+    "name": "gadya",
+    "description": "Gadya Media's Claude Code plugin for building and looking after client websites on Gadya CMS.",
+    "owner": {
+        "name": "Gadya Media",
+        "email": "antony@gadyamedia.com",
+        "url": "https://gadya.media"
+    },
+    "plugins": [
+        {
+            "name": "gadya",
+            "source": "./",
+            "description": "Build and look after Gadya Media client websites, with the Gadya portal wired in.",
+            "version": "0.1.0",
+            "author": {
+                "name": "Gadya Media"
+            },
+            "repository": "https://github.com/gadyamedia/gadya-claude"
+        }
+    ]
+}

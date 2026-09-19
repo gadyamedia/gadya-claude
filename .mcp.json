@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+        "gadya-portal": {
+            "type": "http",
+            "url": "${GADYA_PORTAL_URL:-https://app.gadya.media}/mcp",
+            "headers": {
+                "Authorization": "Bearer ${GADYA_MCP_TOKEN}"
+            }
+        }
+    }
+}
