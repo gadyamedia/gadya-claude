@@ -46,11 +46,13 @@ Show the person this table for their site and agree it before building. Two kind
 
 ## 2. Bring the stack up to the package's requirements
 
-gadya/cms needs PHP 8.3+, Laravel 13, Filament 5, Livewire 4 and intervention/image 3. Upgrade anything below that first, as its own commit, with the tests passing:
+gadya/cms needs PHP 8.3+, Laravel 13, Filament 5, Livewire 4 and intervention/image 3 or 4. Upgrade anything below that first, as its own commit, with the tests passing:
 - Laravel 12 → 13: follow the official upgrade guide.
-- Filament 4 → 5 (and Livewire 3 → 4): `composer require filament/upgrade:"^5.0" -W --dev`, then `vendor/bin/filament-v5`, then follow its output.
+- Filament 4 → 5 (and Livewire 3 → 4): `composer require filament/upgrade:"^5.0" -W --dev`, then `vendor/bin/filament-v5` (it asks which directories hold Filament code; answer `app`), then the commands it prints, then `composer remove filament/upgrade --dev`.
 
 Use `search-docs` (Laravel Boost) for each upgrade guide rather than memory.
+
+`composer require gadya/cms` may also refuse over a shared dependency the site pins lower - `laravel/ai`, for instance. Raise the site's constraint to what the package needs, then run the site's own tests for that feature before going on.
 
 ## 3. Require and install
 
@@ -73,6 +75,8 @@ php artisan gadya-cms:install --no-admin
 
 It publishes the config, runs the package's migrations (every table is `gadyacms_*`, so nothing clashes with the site's own), seeds the document and indexes `public/images/site`.
 
+With the tables empty the package falls back to `config/site.php`, so the site's existing tests keep rendering the same words with no test setup at all. Write that file with the copy exactly as the templates have it today - the tests are what prove you copied it faithfully.
+
 ## 4. The panel
 
 Read `docs/installation.md` and `docs/roles-and-globals.md`.
@@ -84,7 +88,8 @@ Read `docs/installation.md` and `docs/roles-and-globals.md`.
   - Implement `FilamentUser`, and define the `manage-content` and `manage-users` gates.
   - Set `users.roles`, `default_role` and `admin_role` in `config/gadya-cms.php`. Keep `role` out of `$fillable`.
 - **Duplicates:** remove the site's own resources for anything that moved into the package: menu, media, redirects, SEO settings, contact submissions, invitations, analytics pages. Keep their models and tables until the client has signed off (see step 9).
-- **Switches:** for features the site doesn't want, set `->blog(false)`, `->events(false)` and so on, rather than leaving them empty.
+- **Switches:** for features the site doesn't want, set `->blog(false)`, `->events(false)` and so on, rather than leaving them empty. `->analytics(false)` also leaves the site's own dashboard at the panel root, which a site with its own widgets wants.
+- **Roles:** a site using spatie/laravel-permission (or Filament Shield or Guardian) needs no `role` column. Define the two gates against the roles it already has, and set `->team(false)` so the package never writes one.
 
 ## 5. Templates
 
@@ -98,6 +103,8 @@ Read `docs/live-editor.md` and `docs/site-document.md`. Then go page by page:
   - Replace hard-coded words and settings reads with the document: `$page['heading']`, `$site['phone']`.
   - Mark each one `@editable(...)` inside `@editableFor("pages.{$slug}")`.
   - Add every path to `gadya-cms.editable_fields`.
+- **Livewire pages:** a full-page Livewire component resolves the document in `render()` through a small trait and passes `$page` to the view. Keep `@php` out of the top of the view: Livewire wants the root element first, and some sites have a test that says so.
+- **Components:** where the copy sits inside a Blade component (a checklist, an FAQ, a call-to-action band), give the component an optional `editable` path prop and mark each item with `EditContext::globalAttributes("{$editable}.{$index}")`. Without a path it renders exactly as before.
 - **Photos:**
   - `@siteImage($page['hero_image'], 960)` with `@siteSrcset(...)`.
   - Copy every photo the site serves into `public/images/site/` (from `storage/app/public` or wherever the old `Media` model stored them), keeping the file names.
@@ -105,16 +112,23 @@ Read `docs/live-editor.md` and `docs/site-document.md`. Then go page by page:
   - Replace hand-written title, description, canonical and Open Graph tags with `@cmsSeo($page)`.
   - Add `@cmsToolbar` before `</body>` and `@gadyaBuiltBy` at the end of the footer.
 - **Forms:** send enquiry forms through `@cmsForm('key')` and `@cmsFormStatus('key')` (`docs/forms.md`).
-- **Old sitemap:** delete the hand-made sitemap route and view (`sitemap.blade.php`), a static `public/robots.txt`, and any spatie/laravel-sitemap wiring. Then list the business data's addresses in the package's sitemap with `SitemapEntries::add(fn () => …)` in a service provider (gadya/cms 0.5.4+, *Sitemap and robots* in `docs/seo.md`).
+- **Old sitemap:** a site whose sitemap, robots.txt and llms.txt are thin gives them up: delete the hand-made route and view (`sitemap.blade.php`), a static `public/robots.txt` and any spatie/laravel-sitemap wiring, then list the business data's addresses with `SitemapEntries::add(fn () => …)` in a service provider (gadya/cms 0.5.4+, *Sitemap and robots* in `docs/seo.md`).
+
+  A site that has built more than the package offers - agent discovery documents, Markdown for crawlers, its own JSON-LD - keeps its own and switches the package's off (`seo.sitemap`, `seo.robots`, `seo.llms`, `seo.markdown`, `seo.link_headers`). Then keep its `<head>` but feed the title and description from `$page['seo']`, so the client can still edit them. With those off the audit lists `@cmsSeo` as a choice rather than a to-do.
 - **Old dynamic pages** (such as a `Page` model served at `/{slug}`): move them into `pages.*`. Then either let the package's page route serve them, or keep the controller and read the document; `pages.route_excluded_slugs` settles the conflict.
 
-Write a feature test per template, in the project's style, that publishes a document and asserts the page shows its words. Use the `publishDocument([...])`-style helpers from `docs/site-document.md`, and keep the tests that already cover the business data passing.
+Check first whether the project runs Pest or PHPUnit (`composer show --direct`, and read a neighbouring test) and write in that style. Write a feature test per template that publishes a document and asserts the page shows its words. Use the `publishDocument([...])`-style helpers from `docs/site-document.md`, and keep the tests that already cover the business data passing.
+
+### Details stated in more than one place
+
+A phone number or an address is usually typed separately into templates, emails, structured data, chat replies, AI prompts and llms.txt. Put it in the document once, give the site a small reader class for it, and point every one of those at the reader. Grep for the number, the email and the street afterwards: that grep coming back empty is the proof the client can now change it herself.
 
 ## 6. The one-off content transfer
 
 The client's live words are in the production database, not in the repo. Write `app/Console/Commands/MoveContentToGadyaCms.php` (`gadya:move-content`). It:
 
-- reads the old tables (`site_settings`, `seo_settings`, `pages`, `hero_slides`, `faqs`, `menu_items`, `redirects`, `contact_submissions`, …) and maps each value to its document path;
+- reads the old tables (`site_settings`, `seo_settings`, `pages`, `hero_slides`, `faqs`, `menu_items`, `redirects`, `contact_submissions`, spatie `settings`, …) and maps each value to its document path;
+- where an old setting disagrees with what the site actually shows - a phone in a settings table no template reads, say - prints both and changes nothing, rather than quietly changing what the site says;
 - writes it into the draft through `SiteContentRepository::saveDraft()`. It never publishes, and it never writes to the old tables;
 - creates `Gadya\Cms\Models\Redirect` rows from the old redirects table;
 - copies old uploads into `public/images/site/`, then calls `gadya-cms:import-legacy-media` and `gadya-cms:media-variants`;
@@ -149,3 +163,5 @@ Tell the person:
    5. Make sure the cron runs `schedule:run` every minute.
 3. **Pairing:** pair with the portal (`php artisan gadya:connect GDY-…`).
 4. **Later, in a separate PR once the client has used it for a few weeks:** drop the old tables and models that moved, and delete the transfer command.
+
+Say plainly what stayed behind and why - a rich-text legal page the package would edit as raw HTML, an AI pipeline its articles do not cover - so nobody is told a feature moved when it did not.
