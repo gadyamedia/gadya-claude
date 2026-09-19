@@ -1,7 +1,7 @@
 {
     "name": "gadya",
     "description": "Gadya Media's way of building and looking after client websites: start a new site, convert an existing one, upgrade every site, and check on them all, with the Gadya portal (MCP) wired in.",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "author": {
         "name": "Gadya Media",
         "email": "antony@gadyamedia.com",

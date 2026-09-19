@@ -19,6 +19,11 @@ A site's code lives in a local folder whose `composer.json` requires `gadya/cms`
 - search the usual places (`~/Sites`, `~/Sites/client-work`) to depth 3;
 - remember what you find in `~/.config/gadya/sites.json` (`{"<site host>": "<absolute path>"}`) so the next run is instant.
 
+**Skip any project whose gadya/cms is not the published package.**
+- Its `composer.json` has a `path` repository providing `gadya/cms`, or `vendor/gadya/cms` is a symlink into the project (e.g. `packages/gadya/cms`), or `composer show gadya/cms` shows no `source` on github.com/gadyamedia/gadya-cms.
+- Such a project runs an unrelated in-house CMS of the same name (thewhole does), so an upgrade would be a rebuild, not a version bump.
+- List it as "not on the published package" and move on.
+
 A site with no local folder: clone it with `gh repo clone gadyamedia/<repo>` once the person names the repository.
 
 ## 3. Upgrade each one
